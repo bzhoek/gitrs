@@ -3,6 +3,7 @@ use env_logger::Env;
 use env_logger::Target::Stdout;
 use git2::StatusOptions;
 use git2::{Repository, Status};
+use git2::BranchType::Local;
 use log::{info, warn};
 
 fn main() {
@@ -28,10 +29,11 @@ fn main() {
   remotes.iter().for_each(|remote| {
     let name = remote.unwrap();
     let remote = repo.find_remote(name).unwrap();
-    info!("  remote {} -> {:?}", name, remote.url());
+    let url = remote.url().unwrap();
+    info!("  remote {} -> {}", name, url);
   });
 
-  repo.branches(None).unwrap().for_each(|branch| {
+  repo.branches(Some(Local)).unwrap().for_each(|branch| {
     let (branch, _) = branch.unwrap();
     let name = branch.name().unwrap().unwrap();
     if let Ok(upstream) = branch.upstream() {
