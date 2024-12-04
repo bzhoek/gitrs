@@ -36,17 +36,20 @@ fn main() -> Result<()> {
 
   repo.branches(Some(Local))?.for_each(|branch| {
     let (branch, _) = branch.unwrap();
-    let name = branch.name().unwrap().unwrap();
-    let local = branch.get().target().unwrap();
+    let local_name = branch.name().unwrap().unwrap();
+    let local_oid = branch.get().target().unwrap();
     if let Ok(upstream) = branch.upstream() {
       let upstream_name = upstream.name().unwrap().unwrap();
-      info!("upstream {} -> {}", name, upstream_name);
-      let remote = upstream.get().target().unwrap();
-      let (local, remote) = repo.graph_ahead_behind(local, remote).unwrap();
-      info!("upstream {} -> {}", local, remote);
+      let remote_oid = upstream.get().target().unwrap();
+      let (local, remote) = repo.graph_ahead_behind(local_oid, remote_oid).unwrap();
+      if local > 0 {
+        warn!("upstream {} -> {}: {} > {}", local_name, upstream_name, local, remote);
+      } else {
+        info!("upstream {} -> {}: {} - {}", local_name, upstream_name, local, remote);
+      }
     } else {
-      warn!("  branch {}", name);
-      compare_orphan_to_remotes(&repo, local);
+      warn!("  branch {}", local_name);
+      compare_orphan_to_remotes(&repo, local_oid);
     }
   });
 
