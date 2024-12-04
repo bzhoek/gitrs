@@ -5,7 +5,7 @@ use env_logger::Target::Stdout;
 use git2::BranchType::{Local, Remote};
 use git2::{Oid, StatusOptions};
 use git2::{Repository, Status};
-use log::{info, warn};
+use log::{info, log, warn, Level};
 
 fn main() -> Result<()> {
   let args = Command::new("gitrs").arg(Arg::new("PATH").required(true)).get_matches();
@@ -24,7 +24,7 @@ fn main() -> Result<()> {
   };
 
   let remotes = repo.remotes().unwrap();
-  if remotes.len() == 0 {
+  if remotes.is_empty() {
     warn!("No remotes found");
   }
   remotes.iter().for_each(|remote| {
@@ -48,8 +48,8 @@ fn main() -> Result<()> {
         info!("upstream {} -> {}: {} - {}", local_name, upstream_name, local, remote);
       }
     } else {
-      warn!("  branch {}", local_name);
-      compare_orphan_to_remotes(&repo, local_oid);
+      warn!("  orphan {}", local_name);
+      compare_orphan_to_remotes(&repo, local_oid).unwrap();
     }
   });
 
@@ -73,19 +73,28 @@ fn main() -> Result<()> {
   Ok(())
 }
 
-fn compare_orphan_to_remotes(repo: &Repository, local: Oid) {
-  repo.branches(Some(Remote)).unwrap().for_each(|remote| {
-    let (remote, _) = remote.unwrap();
-    warn!("  remote {:?}, {:?}", remote.name(), remote.is_head());
-    if let Ok(resolved) = remote.get().resolve() {
-      warn!("  resolved {:?}, {:?}", resolved.name(), resolved.kind());
-      let remote = resolved.target();
-      let graph = remote.map(|remote| repo.graph_ahead_behind(local, remote).ok()).flatten();
-      graph.inspect(|(local, remote)| info!("upstream {} -> {}", local, remote));
-    }
-    if let Some(remote) = remote.get().target() {
-      let (local, remote) = repo.graph_ahead_behind(local, remote).unwrap();
-      info!("upstream {} -> {}", local, remote);
-    }
+fn compare_orphan_to_remotes(repo: &Repository, local: Oid) -> Result<()> {
+  let branches = repo.branches(Some(Remote))?.flatten();
+  let resolved = branches.map(|(branch, _)| branch.get().resolve().ok().zip(Some(branch))).flatten();
+  resolved.for_each(|(reference, branch)| {
+    let remote_name = branch.name().ok().flatten();
+    let resolved_name = reference.name();
+    let target = reference.target();
+    remote_name.zip(resolved_name).zip(target).map(|((remote_name, resolved_name), remote)| {
+      let graph = repo.graph_ahead_behind(local, remote).ok();
+      graph.inspect(|(local, remote)| {
+        let level = get_log_level(*local);
+        log!(level, "  remote {} -> {}: {} - {}", remote_name, resolved_name, local, remote)
+      });
+    });
   });
+  Ok(())
+}
+
+fn get_log_level(local: usize) -> Level {
+  if local > 0 {
+    Level::Warn
+  } else {
+    Level::Info
+  }
 }
