@@ -72,20 +72,22 @@ fn main() -> Result<()> {
 }
 
 fn compare_orphan_to_remotes(repo: &Repository, local: Oid) -> Result<()> {
-  let branches = repo.branches(Some(Remote))?.flatten();
-  let resolved = branches.map(|(branch, _)| branch.get().resolve().ok().zip(Some(branch))).flatten();
-  resolved.for_each(|(reference, branch)| {
-    let remote_name = branch.name().ok().flatten();
-    let resolved_name = reference.name();
-    let target = reference.target();
-    remote_name.zip(resolved_name).zip(target).map(|((remote_name, resolved_name), remote)| {
-      let graph = repo.graph_ahead_behind(local, remote).ok();
-      graph.inspect(|(local, remote)| {
-        let level = get_log_level(*local);
-        log!(level, "  remote {} -> {}: {} - {}", remote_name, resolved_name, local, remote)
-      });
+  repo.branches(Some(Remote))?
+    .flatten()
+    .flat_map(|(branch, _)| branch.get().resolve().ok().zip(Some(branch)))
+    .for_each(|(reference, branch)| {
+      let remote_name = branch.name().ok().flatten();
+      let resolved_name = reference.name();
+      let target = reference.target();
+      remote_name.zip(resolved_name).zip(target)
+        .map(|((remote_name, resolved_name), remote)| {
+          let graph = repo.graph_ahead_behind(local, remote).ok();
+          graph.inspect(|(local, remote)| {
+            let level = get_log_level(*local);
+            log!(level, "  remote {} -> {}: {} - {}", remote_name, resolved_name, local, remote)
+          });
+        });
     });
-  });
   Ok(())
 }
 
