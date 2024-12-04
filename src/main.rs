@@ -42,11 +42,8 @@ fn main() -> Result<()> {
       let upstream_name = upstream.name().unwrap().unwrap();
       let remote_oid = upstream.get().target().unwrap();
       let (local, remote) = repo.graph_ahead_behind(local_oid, remote_oid).unwrap();
-      if local > 0 {
-        warn!("upstream {} -> {}: {} > {}", local_name, upstream_name, local, remote);
-      } else {
-        info!("upstream {} -> {}: {} - {}", local_name, upstream_name, local, remote);
-      }
+      let level = get_log_level(local);
+      log!(level, "upstream {} -> {}: {} > {}", local_name, upstream_name, local, remote);
     } else {
       warn!("  orphan {}", local_name);
       compare_orphan_to_remotes(&repo, local_oid).unwrap();
@@ -69,7 +66,8 @@ fn main() -> Result<()> {
     }
     warn!("{:?}: {}", entry.status(), path);
   });
-  info!("{} modified, {} deleted, {} untracked, {} unspecified\n", modified, deleted, untracked, unspecified);
+  let level = get_log_level(modified + deleted + untracked + unspecified);
+  log!(level, "{} modified, {} deleted, {} untracked, {} unspecified\n", modified, deleted, untracked, unspecified);
   Ok(())
 }
 
