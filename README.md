@@ -3,7 +3,15 @@
 ```sh
 cargo install --path .
 
-for repo in ~/.nix ~/.dotfiles ~/.brand; do target/debug/gitrs $repo; done
+# specific list
+for repo in ~/.nix ~/.dotfiles ~/.brand; do gitrs $repo; done
 
-for repo in $(find ~/bzhoek -name .git -type d -exec realpath "{}/.." \; | sort -f); do target/debug/gitrs $repo; done
+export FROM_DIR=~/bzhoek
+export FROM_DIR=~/zilverline
+for repo in $(find $FROM_DIR -type d -depth 1 -exec realpath "{}" \; | sort -f); do \
+  gitrs $repo; \
+  done &> $(basename $FROM_DIR).base.log
+
+# only git
+for repo in $(find $FROM_DIR -name .git -type d -exec realpath "{}/.." \; | sort -f); do \
 ```
