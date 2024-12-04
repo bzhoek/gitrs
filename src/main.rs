@@ -45,6 +45,19 @@ fn main() {
       info!("upstream {} -> {}", local, remote);
     } else {
       warn!("  branch {}", name);
+      repo.branches(Some(Remote)).unwrap().for_each(|remote| {
+        let (remote, _type) = remote.unwrap();
+        warn!("  remote {:?}, {:?}", remote.name(), remote.is_head());
+        if let Ok(resolved) = remote.get().resolve() {
+          let remote = resolved.target();
+          let graph = remote.map(|remote| repo.graph_ahead_behind(local, remote).ok()).flatten();
+          graph.inspect(|(local, remote)| info!("upstream {} -> {}", local, remote));
+        }
+        if let Some(remote) = remote.get().target() {
+          let (local, remote) = repo.graph_ahead_behind(local, remote).unwrap();
+          info!("upstream {} -> {}", local, remote);
+        }
+      });
     }
   });
 
