@@ -46,19 +46,7 @@ fn main() -> Result<()> {
       info!("upstream {} -> {}", local, remote);
     } else {
       warn!("  branch {}", name);
-      repo.branches(Some(Remote)).unwrap().for_each(|remote| {
-        let (remote, _type) = remote.unwrap();
-        warn!("  remote {:?}, {:?}", remote.name(), remote.is_head());
-        if let Ok(resolved) = remote.get().resolve() {
-          let remote = resolved.target();
-          let graph = remote.map(|remote| repo.graph_ahead_behind(local, remote).ok()).flatten();
-          graph.inspect(|(local, remote)| info!("upstream {} -> {}", local, remote));
-        }
-        if let Some(remote) = remote.get().target() {
-          let (local, remote) = repo.graph_ahead_behind(local, remote).unwrap();
-          info!("upstream {} -> {}", local, remote);
-        }
-      });
+      compare_orphan_to_remotes(&repo, local);
     }
   });
 
@@ -80,4 +68,21 @@ fn main() -> Result<()> {
   });
   info!("{} modified, {} deleted, {} untracked, {} unspecified\n", modified, deleted, untracked, unspecified);
   Ok(())
+}
+
+fn compare_orphan_to_remotes(repo: &Repository, local: Oid) {
+  repo.branches(Some(Remote)).unwrap().for_each(|remote| {
+    let (remote, _) = remote.unwrap();
+    warn!("  remote {:?}, {:?}", remote.name(), remote.is_head());
+    if let Ok(resolved) = remote.get().resolve() {
+      warn!("  resolved {:?}, {:?}", resolved.name(), resolved.kind());
+      let remote = resolved.target();
+      let graph = remote.map(|remote| repo.graph_ahead_behind(local, remote).ok()).flatten();
+      graph.inspect(|(local, remote)| info!("upstream {} -> {}", local, remote));
+    }
+    if let Some(remote) = remote.get().target() {
+      let (local, remote) = repo.graph_ahead_behind(local, remote).unwrap();
+      info!("upstream {} -> {}", local, remote);
+    }
+  });
 }
