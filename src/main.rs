@@ -1,9 +1,9 @@
 use clap::{Arg, Command};
 use env_logger::Env;
 use env_logger::Target::Stdout;
+use git2::BranchType::{Local, Remote};
 use git2::StatusOptions;
 use git2::{Repository, Status};
-use git2::BranchType::Local;
 use log::{info, warn};
 
 fn main() {
@@ -36,9 +36,13 @@ fn main() {
   repo.branches(Some(Local)).unwrap().for_each(|branch| {
     let (branch, _) = branch.unwrap();
     let name = branch.name().unwrap().unwrap();
+    let local = branch.get().target().unwrap();
     if let Ok(upstream) = branch.upstream() {
       let upstream_name = upstream.name().unwrap().unwrap();
       info!("upstream {} -> {}", name, upstream_name);
+      let remote = upstream.get().target().unwrap();
+      let (local, remote) = repo.graph_ahead_behind(local, remote).unwrap();
+      info!("upstream {} -> {}", local, remote);
     } else {
       warn!("  branch {}", name);
     }
