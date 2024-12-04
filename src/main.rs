@@ -1,12 +1,13 @@
+use anyhow::Result;
 use clap::{Arg, Command};
 use env_logger::Env;
 use env_logger::Target::Stdout;
 use git2::BranchType::{Local, Remote};
-use git2::StatusOptions;
+use git2::{Oid, StatusOptions};
 use git2::{Repository, Status};
 use log::{info, warn};
 
-fn main() {
+fn main() -> Result<()> {
   let args = Command::new("gitrs").arg(Arg::new("PATH").required(true)).get_matches();
   env_logger::Builder::from_env(Env::default().default_filter_or("info")).target(Stdout).init();
   if !args.args_present() {
@@ -33,7 +34,7 @@ fn main() {
     info!("  remote {} -> {}", name, url);
   });
 
-  repo.branches(Some(Local)).unwrap().for_each(|branch| {
+  repo.branches(Some(Local))?.for_each(|branch| {
     let (branch, _) = branch.unwrap();
     let name = branch.name().unwrap().unwrap();
     let local = branch.get().target().unwrap();
@@ -67,7 +68,7 @@ fn main() {
   let mut modified = 0;
   let mut untracked = 0;
   let mut unspecified = 0;
-  repo.statuses(Some(opts)).unwrap().iter().for_each(|entry| {
+  repo.statuses(Some(opts))?.iter().for_each(|entry| {
     let path = entry.path().unwrap();
     match entry.status() {
       Status::WT_DELETED | Status::INDEX_DELETED => deleted += 1,
@@ -78,4 +79,5 @@ fn main() {
     warn!("{:?}: {}", entry.status(), path);
   });
   info!("{} modified, {} deleted, {} untracked, {} unspecified\n", modified, deleted, untracked, unspecified);
+  Ok(())
 }
